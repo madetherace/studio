@@ -45,18 +45,19 @@ export const connectViaWebBluetooth = async (bleName: string): Promise<boolean> 
   if (!navigator.bluetooth) {
     console.error('[ControllerAPI] Web Bluetooth не доступен в этом браузере.');
     toast({ title: "BLE Ошибка", description: "Web Bluetooth не доступен в этом браузере.", variant: "destructive" });
+    isConnecting = false; // Ensure reset if early exit
     return false;
   }
 
   isConnecting = true;
-  isAuthenticated = false; // Сбрасываем флаг при новой попытке подключения
+  isAuthenticated = false;
   console.log(`[ControllerAPI] Попытка подключения к BLE устройству: ${bleName}`);
   toast({ title: "BLE", description: `Попытка подключения к ${bleName}...` });
 
   try {
     const device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: bleName, services: [CONTROLLER_BLE_SERVICE_UUID] }],
-      // optionalServices: [CONTROLLER_BLE_SERVICE_UUID], // Можно оставить, если сервис не рекламный
+      filters: [{ name: bleName }], // Сервис можно убрать из фильтра, если он не рекламный
+      optionalServices: [CONTROLLER_BLE_SERVICE_UUID],
     });
 
     if (!device.gatt) {
@@ -81,29 +82,40 @@ export const connectViaWebBluetooth = async (bleName: string): Promise<boolean> 
     const characteristic = await service.getCharacteristic(CONTROLLER_BLE_CHARACTERISTIC_UUID);
     console.log('[ControllerAPI] Характеристика получена.');
     
-    bleCharacteristic = characteristic; // Сохраняем характеристику до аутентификации
-
     // Шаг 2: Аутентификация - запись токена
     console.log(`[ControllerAPI] Попытка аутентификации: запись токена "${CONTROLLER_TOKEN}"`);
     toast({ title: "BLE", description: "Аутентификация..." });
     const tokenData = textEncoder.encode(CONTROLLER_TOKEN);
-    await bleCharacteristic.writeValueWithoutResponse(tokenData); // Используем WithoutResponse для простоты, если контроллер позволяет
+    await characteristic.writeValueWithoutResponse(tokenData);
     console.log('[ControllerAPI] Токен успешно записан (предполагается успешная аутентификация).');
-    toast({ title: "BLE Аутентификация", description: "Токен отправлен. Предполагается успех." });
-    isAuthenticated = true; // Устанавливаем флаг после "успешной" отправки токена
+    toast({ title: "BLE Аутентификация", description: "Токен отправлен. Аутентификация пройдена." });
+    
+    bleCharacteristic = characteristic; // Сохраняем характеристику ПОСЛЕ успешной аутентификации
+    isAuthenticated = true;
     
     isConnecting = false;
     return true;
 
   } catch (error) {
     console.error('[ControllerAPI] Ошибка подключения или аутентификации Web Bluetooth:', error);
-    toast({ title: "BLE Ошибка", description: `Ошибка подключения/аутентификации: ${(error as Error).message}`, variant: "destructive" });
-    if (bleServer?.connected) {
-      bleServer.disconnect();
+    let userFriendlyMessage = `Произошла ошибка: ${(error as Error).message}`;
+
+    if (error instanceof DOMException && error.name === 'NotFoundError') {
+      userFriendlyMessage = "Поиск устройства BLE отменен или устройство не найдено. Убедитесь, что Bluetooth включен, устройство '${bleName}' находится в зоне досягаемости и выбрано в диалоговом окне. Попробуйте снова.";
+    } else if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      userFriendlyMessage = "Доступ к Bluetooth запрещен. Пожалуйста, разрешите использование Bluetooth в настройках браузера для этого сайта.";
     }
-    bleCharacteristic = null;
-    bleServer = null;
-    isAuthenticated = false;
+    
+    toast({ title: "BLE Ошибка", description: userFriendlyMessage, variant: "destructive" });
+
+    if (bleServer?.connected) {
+      bleServer.disconnect(); // This should trigger onDisconnected
+    } else {
+      // If connection never established or gatt server object not available, manually reset flags
+      bleCharacteristic = null;
+      bleServer = null;
+      isAuthenticated = false;
+    }
     isConnecting = false;
     return false;
   }
@@ -115,7 +127,7 @@ function onDisconnected() {
   bleCharacteristic = null;
   bleServer = null;
   isAuthenticated = false;
-  isConnecting = false;
+  isConnecting = false; // Make sure this is reset here too
 }
 
 /**
@@ -139,16 +151,17 @@ export const sendCommandToController = async (
     const connectionSuccessful = await connectViaWebBluetooth(CONTROLLER_BLE_NAME);
     if (!connectionSuccessful) {
       console.warn('[ControllerAPI] Не удалось подключиться и аутентифицироваться. Команда не отправлена.');
-      toast({ title: "BLE Ошибка", description: "Не удалось подключиться к контроллеру. Команда не отправлена.", variant: "destructive" });
-      // Для GET_INFO все равно вернем мок, если это ROOM_19, чтобы UI не ломался
+      // Для GET_INFO все равно вернем мок, если это ROOM_19, чтобы UI не ломался при первой загрузке без BLE
       if (commandType === ControllerCommandType.GET_INFO && roomId === CONTROLLER_BLE_NAME) {
+         console.log("[ControllerAPI] Возврат статических данных для GET_INFO из-за ошибки подключения BLE.");
         return {
             macAddress: "A2:DD:6C:98:2E:58",
             ipAddress: "192.168.1.100",
-            bleName: "ROOM_19",
-            token: "SNQaq6KVIQQMHR3x"
+            bleName: CONTROLLER_BLE_NAME,
+            token: CONTROLLER_TOKEN
         } as ControllerInfo;
       }
+      toast({ title: "BLE Ошибка", description: "Не удалось подключиться к контроллеру. Команда не отправлена.", variant: "destructive" });
       return null;
     }
   }
@@ -162,16 +175,12 @@ export const sendCommandToController = async (
         console.log(`[ControllerAPI] Подготовка команды СВЕТ: ${payload.lightsOn ? 'ВКЛ' : 'ВЫКЛ'}`);
         dataToWrite = new Uint8Array([COMMAND_TYPE_LIGHT, payload.lightsOn ? VALUE_ON : VALUE_OFF]);
       } else if (payload.hasOwnProperty('doorLocked')) {
-        // doorLocked: false (открыто/разблокировано) -> VALUE_UNLOCK
-        // doorLocked: true (закрыто/заблокировано) -> VALUE_LOCK
         console.log(`[ControllerAPI] Подготовка команды ЗАМОК: ${payload.doorLocked ? 'ЗАБЛОКИРОВАТЬ' : 'РАЗБЛОКИРОВАТЬ'}`);
         dataToWrite = new Uint8Array([COMMAND_TYPE_LOCK, payload.doorLocked ? VALUE_LOCK : VALUE_UNLOCK]);
       } else if (payload.hasOwnProperty('channel1On')) {
-        // TODO: Реализовать протокол для Channel 1, если это физический канал
         console.warn('[ControllerAPI] Управление Channel 1 через BLE не реализовано в этом прототипе.');
         toast({title: "Инфо", description: "Управление Channel 1 через BLE не реализовано."});
       } else if (payload.hasOwnProperty('channel2On')) {
-        // TODO: Реализовать протокол для Channel 2, если это физический канал
         console.warn('[ControllerAPI] Управление Channel 2 через BLE не реализовано в этом прототипе.');
         toast({title: "Инфо", description: "Управление Channel 2 через BLE не реализовано."});
       }
@@ -192,8 +201,6 @@ export const sendCommandToController = async (
     if (commandType === ControllerCommandType.GET_STATE) {
       console.log(`[ControllerAPI] Попытка GET_STATE с ${CONTROLLER_BLE_NAME}`);
       // TODO: Реализовать чтение из bleCharacteristic и декодирование состояния (температура, влажность и т.д.).
-      // const value = await bleCharacteristic.readValue();
-      // const state = decodeState(value); return state;
       console.warn(`[ControllerAPI] GET_STATE (чтение состояния датчиков) через BLE не реализовано.`);
       toast({ title: "Инфо", description: "Чтение состояния датчиков через BLE не реализовано." });
       return null;
@@ -201,12 +208,9 @@ export const sendCommandToController = async (
 
     if (commandType === ControllerCommandType.GET_INFO) {
       console.log(`[ControllerAPI] GET_INFO для ${CONTROLLER_BLE_NAME} (соединение установлено и аутентифицировано).`);
-      // Эта информация обычно статична или получается во время установления соединения,
-      // а не читается через команду после аутентификации.
-      // Возвращаем статические данные, так как они не меняются.
       return {
         macAddress: "A2:DD:6C:98:2E:58",
-        ipAddress: "192.168.1.100", // IP через BLE обычно не узнать, это для TCP моста
+        ipAddress: "192.168.1.100",
         bleName: CONTROLLER_BLE_NAME,
         token: CONTROLLER_TOKEN
       } as ControllerInfo;
@@ -214,7 +218,7 @@ export const sendCommandToController = async (
   } catch (error) {
     console.error(`[ControllerAPI] Ошибка во время BLE коммуникации для команды ${commandType}:`, error);
     toast({ title: "BLE Ошибка Команды", description: `Ошибка: ${(error as Error).message}`, variant: "destructive" });
-    if (bleServer && !bleServer.connected) {
+    if (bleServer && !bleServer.connected) { // Проверяем, что bleServer не null
         onDisconnected(); // Обновляем состояние, если сервер отвалился
     }
     return null;
@@ -230,20 +234,17 @@ export const disconnectFromBLE = async () => {
         try {
             console.log("[ControllerAPI] Отключение от BLE устройства...");
             bleServer.disconnect(); // onDisconnected вызовется автоматически по событию
+            toast({title: "BLE", description: "Отключено от устройства."});
         } catch (error) {
             console.error("[ControllerAPI] Ошибка при отключении от BLE:", error);
             toast({title: "BLE Ошибка", description: "Ошибка при отключении.", variant: "destructive"});
-            // Принудительно сбрасываем состояние, если disconnect() вызвал ошибку, но мог сработать
-            onDisconnected();
+            onDisconnected(); // Принудительно сбрасываем состояние
         }
     } else {
         console.log("[ControllerAPI] Нет активного BLE соединения для отключения.");
+        // Если соединения и не было, но пользователь мог ожидать его, можно все равно сбросить флаги
+        onDisconnected();
     }
-    // В любом случае, явно сбрасываем состояние здесь, если disconnect не был вызван или не отработал onDisconnected
-    bleCharacteristic = null;
-    bleServer = null;
-    isAuthenticated = false;
-    isConnecting = false;
 };
 
 // TODO: Рассмотреть возможность добавления слушателя изменений характеристики,
@@ -256,3 +257,4 @@ export const disconnectFromBLE = async () => {
 //   const value = (event.target as BluetoothRemoteGATTCharacteristic).value;
 //   // Декодировать и обновить состояние в приложении
 // }
+
