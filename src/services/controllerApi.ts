@@ -2,7 +2,7 @@
 // Placeholder for controller API interactions
 // This file would contain logic for TCP and BLE communication as described in the plan.
 
-import type { ControllerStateUpdate, ControllerCommandType, Room, ControllerInfo } from '@/types';
+import { ControllerCommandType, type ControllerStateUpdate, type Room, type ControllerInfo } from '@/types';
 
 /**
  * Simulates sending a command to the controller.
@@ -50,7 +50,7 @@ export const sendCommandToController = async (
     return {
         macAddress: "A2:DD:6C:98:2E:58",
         ipAddress: "192.168.1.100",
-        bleName: "ROOM_19", // Assuming this name doesn't need to be dynamic with roomId for this example
+        bleName: "ROOM_19", // Specific to the controller example provided
         token: "SNQaq6KVIQQMHR3x"
     } as ControllerInfo;
   }
@@ -113,4 +113,3 @@ export const connectViaWebBluetooth = async (bleName: string): Promise<Bluetooth
     return null;
   }
 };
-
