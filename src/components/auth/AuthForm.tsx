@@ -11,18 +11,18 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, Hotel } from 'lucide-react';
+import { LogIn, Hotel, Loader2 } from 'lucide-react'; // Added Loader2
 import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  password: z.string().min(3, { message: "Password must be at least 3 characters" }), // Simplified for demo
+  username: z.string().min(1, { message: "Username is required" }), // Min 1 for simple presence check
+  password: z.string().min(1, { message: "Password is required" }), // Min 1 for simple presence check
 });
 
 type LoginFormInputs = z.infer<typeof loginSchema>;
 
 export function AuthForm() {
-  const { login, loading } = useAuth();
+  const { login, loading: authLoading } = useAuth(); // Renamed loading to authLoading to avoid conflict
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -39,17 +39,26 @@ export function AuthForm() {
         title: "Login Successful",
         description: `Welcome back, ${data.username}!`,
       });
+      
       const redirectPath = searchParams.get('redirect');
-      // Determine redirect based on role (fetched from useAuth after login)
-      // This logic will be slightly delayed due to auth state update, handled by AuthGuard primarily
-      // For direct redirect:
-      const loggedInUser = JSON.parse(localStorage.getItem('pwa-hotel-user') || '{}'); // Quick check
+      // User object is updated by useAuth, we can access it after successful login.
+      // For immediate redirect logic, we need to fetch the user from the auth context *after* login.
+      // Or, login function could return the user object. For now, we rely on useAuth to update.
+      // The AuthGuard will handle redirect based on role if this push is too generic or early.
+      
+      // A simple check based on username for demo purposes. In real app, role comes from user object.
+      const isAdmin = data.username === 'admin'; 
+
       if (redirectPath) {
         router.push(redirectPath);
-      } else if (loggedInUser.role === 'admin') {
+      } else if (isAdmin) {
         router.push('/admin');
       } else {
-        router.push('/'); // Default to booking page for guests
+        // Check if user has a room from mock-data or localStorage if necessary
+        // For this simple PWA, we direct to booking page if no room, or room page if room exists.
+        // This logic might be better handled by AuthGuard or a dedicated redirect service.
+        // For now, guests are redirected to the booking page by default after login.
+        router.push('/'); 
       }
     } else {
       toast({
@@ -63,9 +72,9 @@ export function AuthForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
-        <Hotel className="h-12 w-12 text-accent mx-auto mb-3" />
+        <Hotel className="h-12 w-12 text-primary mx-auto mb-3" />
         <CardTitle className="text-2xl">Login</CardTitle>
-        <CardDescription>Access your account or the admin panel.</CardDescription>
+        <CardDescription>Access your PWA Hotel Account</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -81,8 +90,8 @@ export function AuthForm() {
                    className={errors.password ? 'border-destructive' : ''} />
             {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
-          <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
-            {isSubmitting || loading ? (
+          <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
+            {isSubmitting || authLoading ? (
               <div className="flex items-center justify-center">
                 <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
                 Signing in...
