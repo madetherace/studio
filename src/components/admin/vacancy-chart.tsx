@@ -4,9 +4,11 @@
 import type { Room } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label'; // Added missing import
 import { BarChartBig, CheckCircle2, XCircle, Wrench } from 'lucide-react';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "@/components/ui/chart" // Assuming recharts is used by shadcn/ui/chart
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"; // Corrected import
 
 interface VacancyChartProps {
   rooms: Room[];
@@ -110,3 +112,4 @@ export function VacancyChart({ rooms }: VacancyChartProps) {
     </Card>
   );
 }
+
