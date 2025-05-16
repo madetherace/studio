@@ -8,7 +8,7 @@ export const mockUsers: User[] = [
 
 export const mockRoomsData: Room[] = [
   {
-    id: '101',
+    id: 'ROOM_19', // Changed from '101' to match controller's BLE Name
     status: 'available',
     lightsOn: false,
     doorLocked: true,
@@ -20,7 +20,7 @@ export const mockRoomsData: Room[] = [
     pricePerNight: 150,
     capacity: 2,
     amenities: ['Queen Bed', 'Wi-Fi', 'TV'],
-    imageUrl: 'https://placehold.co/600x400.png',
+    imageUrl: 'https://placehold.co/600x400.png', // data-ai-hint will be added by the client rendering this
   },
   {
     id: '102',

@@ -14,6 +14,7 @@ import { BedDouble, Thermometer, Droplets, Wind, WifiOff, Info, Network, Bluetoo
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image'; // Import Image
 
 export default function RoomManagementPage() {
   const params = useParams();
@@ -105,6 +106,7 @@ export default function RoomManagementPage() {
     }
     setLoadingControllerInfo(true);
     try {
+      // Pass roomId if your API eventually uses it, though current mock doesn't.
       const info = await sendCommandToController(room.id, ControllerCommandType.GET_INFO);
       if (info && 'macAddress' in info) { // Type guard to check if it's ControllerInfo
         setControllerInfo(info as ControllerInfo);
@@ -129,6 +131,13 @@ export default function RoomManagementPage() {
   if (!room) {
     return <div className="text-center py-10 text-destructive">Room {roomId} not found.</div>;
   }
+  
+  // Determine AI hint for the main room image
+  let aiHint = "hotel room interior";
+  if (room.id === "ROOM_19") aiHint = "modern hotel room";
+  else if (room.amenities?.includes("King Bed")) aiHint = "luxury hotel suite";
+  else if (room.capacity === 1) aiHint = "cozy single room";
+
 
   return (
     <AuthGuard allowedRoles={['guest']}>
@@ -146,11 +155,26 @@ export default function RoomManagementPage() {
               <BedDouble className="h-6 w-6 text-accent" />
               Room {room.id} Management
             </CardTitle>
-            <CardDescription>Control your room environment and access.</CardDescription>
+            <CardDescription>Control your room environment and access. Guest: {room.guestName || 'N/A'}</CardDescription>
           </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-6">
-            <RoomControls room={room} onStateChange={handleRoomStateChange} isOffline={isOffline} />
-            <SensorDisplay room={room} />
+          <CardContent className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              {room.imageUrl && (
+                <Image
+                  data-ai-hint={aiHint}
+                  src={room.imageUrl}
+                  alt={`Image of Room ${room.id}`}
+                  width={600}
+                  height={400}
+                  className="rounded-lg object-cover aspect-video shadow-md"
+                  priority // Prioritize loading if it's a key image
+                />
+              )}
+               <SensorDisplay room={room} />
+            </div>
+            <div className="md:col-span-2">
+                <RoomControls room={room} onStateChange={handleRoomStateChange} isOffline={isOffline} />
+            </div>
           </CardContent>
         </Card>
 
@@ -160,7 +184,7 @@ export default function RoomManagementPage() {
               <Info className="h-5 w-5 text-accent" />
               Controller Information
             </CardTitle>
-            <CardDescription>Details about the room's control unit.</CardDescription>
+            <CardDescription>Details about the room's control unit. {room.id === "ROOM_19" ? "(This is ROOM_19's controller)" : ""}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button onClick={fetchControllerInfo} disabled={loadingControllerInfo || isOffline}>

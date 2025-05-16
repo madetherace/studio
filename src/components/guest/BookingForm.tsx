@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getMockRooms, updateMockRoom } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 export function BookingForm() {
@@ -166,7 +167,16 @@ export function BookingForm() {
             <CardTitle className="text-md">Selected: Room {selectedRoomDetails.id}</CardTitle>
           </CardHeader>
           <CardContent className="p-0 text-sm text-muted-foreground space-y-1">
-            {selectedRoomDetails.imageUrl && <Image data-ai-hint="hotel room" src={selectedRoomDetails.imageUrl} alt={`Room ${selectedRoomDetails.id}`} width={200} height={125} className="rounded-md aspect-video object-cover mb-2" />}
+            {selectedRoomDetails.imageUrl && 
+              <Image 
+                data-ai-hint={selectedRoomDetails.id === 'ROOM_19' ? 'modern hotel room' : 'cozy hotel room'} 
+                src={selectedRoomDetails.imageUrl} 
+                alt={`Room ${selectedRoomDetails.id}`} 
+                width={200} 
+                height={125} 
+                className="rounded-md aspect-video object-cover mb-2" 
+              />
+            }
             <p>Capacity: {selectedRoomDetails.capacity ?? 'N/A'} guests</p>
             <p>Price: ${selectedRoomDetails.pricePerNight ?? 'N/A'} / night</p>
             {selectedRoomDetails.amenities && <p>Amenities: {selectedRoomDetails.amenities.join(', ')}</p>}
