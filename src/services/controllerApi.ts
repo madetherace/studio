@@ -46,12 +46,12 @@ export const sendCommandToController = async (
   
   if (commandType === ControllerCommandType.GET_INFO) {
     toastMock(`Controller for room ${roomId}: Fetched info (simulated).`);
+    // Updated to use the provided example data
     return {
-        // mock controller info
-        macAddress: "00:1A:2B:3C:4D:5E",
+        macAddress: "A2:DD:6C:98:2E:58",
         ipAddress: "192.168.1.100",
-        bleName: `HotelRoom_${roomId}`,
-        token: `controller-token-${roomId}`
+        bleName: "ROOM_19", // Assuming this name doesn't need to be dynamic with roomId for this example
+        token: "SNQaq6KVIQQMHR3x"
     } as ControllerInfo;
   }
 
@@ -113,3 +113,4 @@ export const connectViaWebBluetooth = async (bleName: string): Promise<Bluetooth
     return null;
   }
 };
+
