@@ -50,3 +50,10 @@ export interface ControllerStateUpdate {
   channel1On?: boolean;
   channel2On?: boolean;
 }
+
+export interface ControllerInfo {
+  macAddress: string;
+  ipAddress: string;
+  bleName: string;
+  token: string;
+}

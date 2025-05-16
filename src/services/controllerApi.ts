@@ -2,7 +2,7 @@
 // Placeholder for controller API interactions
 // This file would contain logic for TCP and BLE communication as described in the plan.
 
-import type { ControllerStateUpdate, ControllerCommandType, Room } from '@/types';
+import type { ControllerStateUpdate, ControllerCommandType, Room, ControllerInfo } from '@/types';
 
 /**
  * Simulates sending a command to the controller.
@@ -13,7 +13,7 @@ export const sendCommandToController = async (
   roomId: string,
   commandType: ControllerCommandType,
   payload?: ControllerStateUpdate | any // eslint-disable-line @typescript-eslint/no-explicit-any
-): Promise<Partial<Room> | null> => {
+): Promise<Partial<Room> | ControllerInfo | null> => {
   console.log(`[ControllerAPI] Simulating command for room ${roomId}:`, { commandType, payload });
 
   // Simulate network delay
@@ -52,7 +52,7 @@ export const sendCommandToController = async (
         ipAddress: "192.168.1.100",
         bleName: `HotelRoom_${roomId}`,
         token: `controller-token-${roomId}`
-    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    } as ControllerInfo;
   }
 
 
