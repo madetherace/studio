@@ -1,26 +1,22 @@
-import type { Metadata } from 'next';
-import { Inter as FontSans } from 'next/font/google'; // Using Inter as a fallback, Geist is good.
+
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { cn } from "@/lib/utils";
 import { AuthProvider } from '@/contexts/auth-context';
-import { Toaster } from "@/components/ui/toaster"; // Ensure Toaster is correctly imported
+import { Toaster } from "@/components/ui/toaster";
+import { AppHeader } from '@/components/shared/AppHeader'; // Renamed Header to AppHeader
 
-const fontSans = FontSans({
-  subsets: ["latin"],
-  variable: "--font-sans", // Changed from --font-geist-sans to --font-sans based on new import
-});
-
-// Keeping Geist from original if preferred, but Inter is also a good modern choice.
-// For consistency with potential ShadCN defaults, using --font-sans.
-// If Geist is specifically required:
-// import { Geist, Geist_Mono } from 'next/font/google';
-// const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-// const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
-// And update className below to: `${geistSans.variable} ${geistMono.variable} font-sans antialiased`
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Eleon - Modern Hotel Access',
-  description: 'Experience seamless room access and control with Eleon.',
+  title: 'PWA Hotel Management',
+  description: 'PWA for managing hotel room access and bookings.',
+  manifest: '/manifest.json', // Link to PWA manifest
+};
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff', // Match with manifest.json theme_color
 };
 
 export default function RootLayout({
@@ -30,14 +26,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body 
+      <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased", // Using font-sans based on Inter import
-          fontSans.variable
+          "min-h-screen bg-background font-sans antialiased flex flex-col",
+          inter.variable
         )}
       >
         <AuthProvider>
-          {children}
+          <AppHeader />
+          <main className="flex-grow container mx-auto px-4 py-8">
+            {children}
+          </main>
           <Toaster />
         </AuthProvider>
       </body>

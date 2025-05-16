@@ -1,105 +1,97 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 259 100% 97%; /* Very Light Lavender #F5F0FF */
-    --foreground: 259 30% 25%; /* Dark Purple for text */
+    --background: 0 0% 100%; /* White */
+    --foreground: 222.2 84% 4.9%; /* Dark Blue - almost black for text */
 
-    --card: 259 100% 100%; /* White */
-    --card-foreground: 259 30% 25%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 259 100% 100%;
-    --popover-foreground: 259 30% 25%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 259 45% 50%; /* Rich Purple #6A44B8 */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 210 40% 96.1%; /* Light grayish blue - for primary actions/elements if needed */
+    --primary-foreground: 222.2 47.4% 11.2%; /* Dark blue text on primary */
 
-    --secondary: 259 60% 90%; /* Lighter Lavender */
-    --secondary-foreground: 259 45% 50%; /* Primary color for contrast on secondary */
+    --secondary: 210 40% 96.1%; /* Light grayish blue - for secondary elements */
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 259 60% 85%; /* Subtle Muted Lavender */
-    --muted-foreground: 259 30% 45%; /* Darker Muted Purple */
+    --muted: 210 40% 96.1%; /* Light grayish blue - for muted text or backgrounds */
+    --muted-foreground: 210 40% 40.1%; /* Slightly darker muted text */
 
-    --accent: 260 57% 25%; /* Deep Blue-Purple #34196B */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 217.2 91.2% 59.8%; /* Standard Blue - for accents */
+    --accent-foreground: 0 0% 98%; /* White text on accent */
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84.2% 60.2%; /* Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 259 40% 80%; /* Lavender Border */
-    --input: 259 40% 88%; /* Light Lavender Input BG */
-    --ring: 259 45% 50%; /* Primary color for rings */
+    --border: 214.3 31.8% 91.4%; /* Light Gray border */
+    --input: 214.3 31.8% 91.4%; /* Light Gray input background */
+    --ring: 217.2 91.2% 59.8%; /* Standard Blue for focus rings */
 
-    --radius: 0.5rem;
+    --radius: 0.3rem; /* Slightly smaller radius for minimalist feel */
 
-    --chart-1: 259 45% 50%; /* Primary */
-    --chart-2: 260 57% 25%; /* Accent */
-    --chart-3: 259 60% 65%; 
-    --chart-4: 260 40% 45%;
-    --chart-5: 259 30% 70%;
+    /* Chart colors - can be adjusted */
+    --chart-1: 217.2 91.2% 59.8%; /* Blue */
+    --chart-2: 142.1 70.6% 45.3%; /* Green */
+    --chart-3: 346.8 77.2% 49.8%; /* Pink/Red */
+    --chart-4: 43.8 95.5% 58.8%; /* Yellow */
+    --chart-5: 259 60% 65%; /* Purple */
 
-    /* Sidebar specific theme for Admin */
-    --sidebar-background: 260 57% 25%; /* Accent Color #34196B */
-    --sidebar-foreground: 259 100% 97%; /* Very Light Lavender for text */
-    --sidebar-primary: 259 45% 50%; /* Primary Color #6A44B8 for active items */
-    --sidebar-primary-foreground: 0 0% 100%; /* White */
-    --sidebar-accent: 259 45% 40%; /* Slightly darker Primary for hover on sidebar */
-    --sidebar-accent-foreground: 0 0% 100%; /* White */
-    --sidebar-border: 260 57% 35%; /* Slightly Lighter Accent for borders */
-    --sidebar-ring: 259 45% 50%; /* Primary for focus rings in sidebar */
+    /* Sidebar specific theme (if using the complex sidebar component) */
+    /* For a minimalist app, sidebar might be simpler or use main theme colors */
+    --sidebar-background: 0 0% 98%; /* Very light gray, almost white */
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 217.2 91.2% 59.8%; /* Blue for active items */
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 210 40% 94%; /* Lighter hover */
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 88%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    /* Dark theme is not specified, but keeping the structure */
-    --background: 260 57% 15%; /* Darker Deep Blue-Purple */
-    --foreground: 259 100% 92%; /* Lighter Lavender */
+    /* Define dark theme variables if needed, or remove if not supporting dark mode initially */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --card: 260 57% 20%; 
-    --card-foreground: 259 100% 92%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 260 57% 20%;
-    --popover-foreground: 259 100% 92%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 259 45% 60%; /* Lighter Rich Purple */
-    --primary-foreground: 260 57% 15%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 260 57% 30%;
-    --secondary-foreground: 259 100% 92%;
+    --secondary: 210 40% 14.9%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 260 57% 28%;
-    --muted-foreground: 259 100% 75%;
+    --muted: 210 40% 14.9%;
+    --muted-foreground: 210 40% 60.1%;
 
-    --accent: 259 45% 55%; /* Lighter Rich Purple as accent */
-    --accent-foreground: 260 57% 15%;
+    --accent: 217.2 91.2% 59.8%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 260 57% 30%;
-    --input: 260 57% 30%;
-    --ring: 259 45% 60%;
+    --border: 210 40% 14.9%;
+    --input: 210 40% 14.9%;
+    --ring: 217.2 91.2% 59.8%;
 
-    --chart-1: 259 45% 60%;
-    --chart-2: 259 45% 55%;
-    --chart-3: 259 60% 75%;
-    --chart-4: 260 40% 55%;
-    --chart-5: 259 30% 80%;
-
-    /* Dark Sidebar specific theme */
-    --sidebar-background: 260 57% 10%; /* Even Darker Deep Blue-Purple */
-    --sidebar-foreground: 259 100% 95%; /* Lighter Lavender text */
-    --sidebar-primary: 259 45% 55%; /* Lighter Rich Purple for active items */
-    --sidebar-primary-foreground: 260 57% 10%;
-    --sidebar-accent: 259 45% 45%; 
-    --sidebar-accent-foreground: 259 100% 95%;
-    --sidebar-border: 260 57% 20%;
-    --sidebar-ring: 259 45% 55%;
+    --sidebar-background: 222.2 84% 3.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 210 40% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 210 40% 14.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -109,7 +101,13 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    min-height: 100vh;
+    font-feature-settings: "rlig" 1, "calt" 1; /* More modern font rendering */
+  }
+   /* Ensure app takes full height */
+  html, body, #__next {
+    height: 100%;
+  }
+  #__next {
     display: flex;
     flex-direction: column;
   }

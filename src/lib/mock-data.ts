@@ -1,61 +1,100 @@
-import type { Room, Booking } from '@/types';
 
-export const mockRooms: Room[] = [
+import type { Room, User } from '@/types';
+
+export const mockUsers: User[] = [
+  { id: 'admin-user', username: 'admin', token: 'admin-token-xxxx', role: 'admin' },
+  { id: 'guest-user-1', username: 'testguest', token: 'guest-token-yyyy', role: 'guest' },
+];
+
+export const mockRoomsData: Room[] = [
   {
-    id: 'room-101',
-    name: 'Sunset View Suite',
-    capacity: 2,
-    amenities: ['King Bed', 'Ocean View', 'Balcony', 'Wi-Fi'],
-    pricePerNight: 250,
-    imageUrl: 'https://placehold.co/600x400/6A44B8/F5F0FF.png',
+    id: '101',
     status: 'available',
-    powerOn: true,
-    lightsOn: true,
-  },
-  {
-    id: 'room-102',
-    name: 'Garden Retreat Deluxe',
-    capacity: 3,
-    amenities: ['Queen Bed', 'Garden View', 'Mini Bar', 'Wi-Fi'],
-    pricePerNight: 180,
-    imageUrl: 'https://placehold.co/600x400/34196B/F5F0FF.png',
-    status: 'occupied',
-    powerOn: true,
     lightsOn: false,
-  },
-  {
-    id: 'room-201',
-    name: 'City Lights King',
-    capacity: 2,
-    amenities: ['King Bed', 'City View', 'Workspace', 'Wi-Fi'],
-    pricePerNight: 220,
-    imageUrl: 'https://placehold.co/600x400/8A5CDE/F5F0FF.png',
-    status: 'maintenance',
-    powerOn: false,
-    lightsOn: false,
-  },
-  {
-    id: 'room-202',
-    name: 'Cozy Twin Haven',
-    capacity: 2,
-    amenities: ['Two Twin Beds', 'Quiet Zone', 'Wi-Fi'],
+    doorLocked: true,
+    channel1On: false,
+    channel2On: false,
+    temperature: 22,
+    humidity: 45,
+    pressure: 1012,
     pricePerNight: 150,
-    imageUrl: 'https://placehold.co/600x400/5A2AA0/F5F0FF.png',
-    status: 'available',
-    powerOn: true,
+    capacity: 2,
+    amenities: ['Queen Bed', 'Wi-Fi', 'TV'],
+    imageUrl: 'https://placehold.co/600x400.png',
+  },
+  {
+    id: '102',
+    status: 'occupied',
+    guestName: 'Alice Wonderland',
     lightsOn: true,
+    doorLocked: false,
+    channel1On: true,
+    channel2On: false,
+    temperature: 23,
+    humidity: 50,
+    pressure: 1010,
+    pricePerNight: 180,
+    capacity: 2,
+    amenities: ['King Bed', 'Wi-Fi', 'TV', 'Minibar'],
+    imageUrl: 'https://placehold.co/600x400.png',
+  },
+  {
+    id: '103',
+    status: 'maintenance',
+    lightsOn: false,
+    doorLocked: true,
+    channel1On: false,
+    channel2On: false,
+    pricePerNight: 120,
+    capacity: 1,
+    amenities: ['Single Bed', 'Wi-Fi'],
+    imageUrl: 'https://placehold.co/600x400.png',
   },
 ];
 
-export const mockBookings: Booking[] = [
-  {
-    id: 'booking-1',
-    roomId: 'room-102',
-    roomName: 'Garden Retreat Deluxe',
-    userId: 'guest1',
-    checkInDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days ago
-    checkOutDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now
-    guests: 2,
-    totalPrice: 180 * 5,
-  },
-];
+// This function would ideally fetch from a backend or Zustand-like store
+// For now, it simulates a simple in-memory store for rooms that can be updated
+// This is a simplified approach. Zustand or React Context would be better for real state management.
+let MOCK_ROOMS_STORE: Room[] = JSON.parse(JSON.stringify(mockRoomsData)); // Deep copy
+
+export const getMockRooms = (): Room[] => {
+  // Simulate fetching from localStorage if PWA offline features were more developed
+  if (typeof localStorage !== 'undefined') {
+    const storedRooms = localStorage.getItem('pwa-hotel-rooms');
+    if (storedRooms) {
+      try {
+        return JSON.parse(storedRooms);
+      } catch (e) {
+        console.error("Failed to parse rooms from localStorage", e);
+        // Fallback to initial mock if parsing fails
+        localStorage.setItem('pwa-hotel-rooms', JSON.stringify(MOCK_ROOMS_STORE));
+        return MOCK_ROOMS_STORE;
+      }
+    } else {
+      localStorage.setItem('pwa-hotel-rooms', JSON.stringify(MOCK_ROOMS_STORE));
+      return MOCK_ROOMS_STORE;
+    }
+  }
+  return MOCK_ROOMS_STORE;
+};
+
+export const updateMockRoom = (updatedRoom: Room): void => {
+  MOCK_ROOMS_STORE = MOCK_ROOMS_STORE.map(room => room.id === updatedRoom.id ? updatedRoom : room);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('pwa-hotel-rooms', JSON.stringify(MOCK_ROOMS_STORE));
+  }
+};
+
+export const initializeMockRooms = () => {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem('pwa-hotel-rooms')) {
+    localStorage.setItem('pwa-hotel-rooms', JSON.stringify(mockRoomsData));
+    MOCK_ROOMS_STORE = JSON.parse(JSON.stringify(mockRoomsData));
+  } else if (typeof localStorage !== 'undefined') {
+    // Ensure MOCK_ROOMS_STORE is in sync with localStorage on load
+     try {
+        MOCK_ROOMS_STORE = JSON.parse(localStorage.getItem('pwa-hotel-rooms') || JSON.stringify(mockRoomsData));
+      } catch (e) {
+        MOCK_ROOMS_STORE = JSON.parse(JSON.stringify(mockRoomsData));
+      }
+  }
+};

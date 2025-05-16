@@ -1,16 +1,18 @@
 
 "use client"
+// This component is effectively replaced by OccupancyChart.tsx for the new PWA.
+// Keeping for reference, but OccupancyChart.tsx should be used.
 
 import type { Room } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Label } from '@/components/ui/label'; // Added missing import
+import { Label } from '@/components/ui/label';
 import { BarChartBig, CheckCircle2, XCircle, Wrench } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"; // Corrected import
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
-interface VacancyChartProps {
+interface OldVacancyChartProps {
   rooms: Room[];
 }
 
@@ -21,13 +23,13 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 
-export function VacancyChart({ rooms }: VacancyChartProps) {
+export function VacancyChart({ rooms }: OldVacancyChartProps) {
   if (!rooms || rooms.length === 0) {
     return (
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl text-primary flex items-center gap-2">
-            <BarChartBig className="h-6 w-6"/> Hotel Vacancy Statistics
+            <BarChartBig className="h-6 w-6"/> Old Hotel Vacancy Statistics
           </CardTitle>
           <CardDescription>Current room occupancy and availability rates.</CardDescription>
         </CardHeader>
@@ -56,7 +58,7 @@ export function VacancyChart({ rooms }: VacancyChartProps) {
     <Card className="shadow-xl">
       <CardHeader>
         <CardTitle className="text-2xl text-primary flex items-center gap-2">
-          <BarChartBig className="h-6 w-6"/> Hotel Vacancy Statistics
+          <BarChartBig className="h-6 w-6"/> Old Hotel Vacancy Statistics
         </CardTitle>
         <CardDescription>Current room occupancy and availability rates ({totalRooms} total rooms).</CardDescription>
       </CardHeader>
@@ -112,4 +114,3 @@ export function VacancyChart({ rooms }: VacancyChartProps) {
     </Card>
   );
 }
-

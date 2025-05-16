@@ -1,20 +1,18 @@
 
-import AuthGuard from '@/components/auth/auth-guard';
-import { SharedHeader } from '@/components/shared/header';
-import type { ReactNode } from 'react';
+// This layout is not strictly necessary if /room/[roomId]/page.tsx uses AuthGuard and RootLayout is sufficient.
+// However, keeping it allows for potential guest-section specific wrappers in the future.
+// If this file is not needed, it can be removed, and Next.js will use src/app/layout.tsx by default.
 
-export default function GuestLayout({ children }: { children: ReactNode }) {
+import type { ReactNode } from 'react';
+import AuthGuard from '@/components/auth/AuthGuard';
+
+export default function GuestSectionLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGuard allowedRoles={['guest']}>
-      <div className="flex flex-col min-h-screen bg-background">
-        <SharedHeader />
-        <main className="flex-grow container mx-auto px-4 py-8">
-          {children}
-        </main>
-        <footer className="text-center py-4 border-t border-border text-sm text-muted-foreground">
-          Eleon Guest Portal &copy; {new Date().getFullYear()}
-        </footer>
-      </div>
+      {/* This layout wraps guest-specific pages like booking or room management. */}
+      {/* It currently doesn't add much beyond what RootLayout and AuthGuard provide. */}
+      {/* Can be expanded with guest-specific navigation or footers if needed. */}
+      {children}
     </AuthGuard>
   );
 }

@@ -1,5 +1,8 @@
 
 "use client"
+// This component is not used in the new PWA structure for simplicity.
+// Navigation is handled by the AppHeader.
+// If a dedicated admin sidebar is needed later, this can be adapted.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,15 +16,12 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarTrigger
-} from "@/components/ui/sidebar"; // Assuming the path is correct
+} from "@/components/ui/sidebar"; 
 
-interface AdminSidebarProps {
-  // Props if needed, e.g. for mobile toggle
-}
+interface AdminSidebarProps {}
 
 const menuItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/rooms", label: "Room Status", icon: Bed },
   { href: "/admin/bookings", label: "Bookings", icon: Users },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
@@ -32,13 +32,12 @@ export function AdminSidebar({}: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar collapsible="icon" className="border-r hidden md:flex"> {/* Hide on mobile, use AppHeader */}
       <SidebarHeader className="p-4 flex items-center gap-2 justify-center group-data-[collapsible=icon]:justify-center">
-         <Link href="/admin/dashboard" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+         <Link href="/admin" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
             <Building className="h-8 w-8 text-sidebar-primary-foreground" />
-            <span className="text-2xl font-bold text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">Eleon</span>
+            <span className="text-2xl font-bold text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">Admin</span>
         </Link>
-        {/* <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:hidden" /> */}
       </SidebarHeader>
       
       <SidebarContent className="p-2">
@@ -48,7 +47,7 @@ export function AdminSidebar({}: AdminSidebarProps) {
               <Link href={item.href} legacyBehavior passHref>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname.startsWith(item.href)}
+                  isActive={pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))}
                   className="justify-start"
                   tooltip={{ children: item.label, className: "bg-sidebar-accent text-sidebar-accent-foreground" }}
                 >
@@ -63,11 +62,11 @@ export function AdminSidebar({}: AdminSidebarProps) {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-4 mt-auto group-data-[collapsible=icon]:p-2">
-        {/* Could add a user profile button or settings shortcut here */}
          <p className="text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden text-center">
-          Eleon Admin Panel
+          Hotel PWA Admin
         </p>
       </SidebarFooter>
     </Sidebar>
   );
 }
+
