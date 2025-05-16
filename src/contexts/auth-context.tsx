@@ -3,7 +3,7 @@
 
 import type { User } from '@/types';
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } // Corrected import for useRouter
+import { useRouter } 
 from 'next/navigation';
 import { mockUsers, initializeMockRooms } from '@/lib/mock-data';
 
@@ -46,13 +46,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     // Simulate API call & hardcoded user check
     await new Promise(resolve => setTimeout(resolve, 500));
-    const foundUser = mockUsers.find(u => u.username === username && u.token.includes(pass)); // Simplified pass check for demo
+    // Corrected password check:
+    const foundUser = mockUsers.find(u => u.username === username && pass === 'password');
 
     if (foundUser) {
-      const userData: User = { ...foundUser, token: `${foundUser.role}-token-${Date.now()}` }; // Generate a mock token
-      setUser(userData);
+      // Use a simplified user object from mockUsers, then generate a new token
+      const baseUser: User = { 
+        id: foundUser.id, 
+        username: foundUser.username, 
+        role: foundUser.role, 
+        token: `${foundUser.role}-token-${Date.now()}` // Generate a new mock token
+        // roomId and bookingDate will be set upon actual booking for guests
+      };
+      
+      // If the mock user has a roomId (e.g. for pre-booked demo), include it.
+      // This isn't in the current mockUsers structure but could be added if needed.
+      // For now, roomId is typically added after a booking action.
+      if (foundUser.roomId) {
+        baseUser.roomId = foundUser.roomId;
+      }
+      
+      setUser(baseUser);
       try {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(baseUser));
       } catch (error) {
         console.error("Failed to save user to localStorage", error);
       }
