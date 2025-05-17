@@ -1,20 +1,19 @@
 
 "use client";
-// This page serves as the "RoomPage" for managing a specific room
 import AuthGuard from '@/components/auth/AuthGuard';
 import { RoomControls } from '@/components/guest/RoomControls';
 import { SensorDisplay } from '@/components/guest/SensorDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getMockRooms, updateMockRoom } from '@/lib/mock-data';
-import type { Room, ControllerInfo } from '@/types';
-import { ControllerCommandType } from '@/types';
-import { sendCommandToController } from '@/services/controllerApi';
-import { BedDouble, Thermometer, Droplets, Wind, WifiOff, Info, Network, Bluetooth, Fingerprint, KeyRound, Loader2 } from 'lucide-react';
+import { getMockRooms, updateMockRoom, initializeMockRooms } from '@/lib/mock-data';
+import type { Room, ControllerInfo, WebSocketResponse } from '@/types';
+import { ControllerCommandType, CommunicationChannel } from '@/types';
+import { sendCommandToController, ensureBleConnection, disconnectFromBLE } from '@/services/controllerApi';
+import { BedDouble, WifiOff, Info, Network, Bluetooth, Fingerprint, KeyRound, Loader2, Power, Zap } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image'; // Import Image
+import Image from 'next/image';
 
 export default function RoomManagementPage() {
   const params = useParams();
@@ -26,8 +25,10 @@ export default function RoomManagementPage() {
 
   const [controllerInfo, setControllerInfo] = useState<ControllerInfo | null>(null);
   const [loadingControllerInfo, setLoadingControllerInfo] = useState(false);
+  const [preferredChannel, setPreferredChannel] = useState<CommunicationChannel>(CommunicationChannel.WEBSOCKET);
 
   useEffect(() => {
+    initializeMockRooms(); // Ensure rooms are initialized
     const updateOnlineStatus = () => setIsOffline(!navigator.onLine);
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
@@ -35,104 +36,160 @@ export default function RoomManagementPage() {
     return () => {
       window.removeEventListener('online', updateOnlineStatus);
       window.removeEventListener('offline', updateOnlineStatus);
+      // disconnectFromBLE(); // Отключаемся от BLE при размонтировании страницы
     };
   }, []);
+
+  const fetchRoomDataFromLocalStorage = useCallback(() => {
+    const allRooms = getMockRooms();
+    const currentRoom = allRooms.find(r => r.id === roomId);
+    if (currentRoom) {
+      setRoom(currentRoom);
+    } else {
+      toast({ title: "Ошибка", description: "Комната не найдена.", variant: "destructive" });
+    }
+  }, [roomId, toast]);
 
   useEffect(() => {
     if (roomId) {
       setLoading(true);
-      const allRooms = getMockRooms();
-      const currentRoom = allRooms.find(r => r.id === roomId);
-      if (currentRoom) {
-        setRoom(currentRoom);
-      } else {
-        toast({ title: "Error", description: "Room not found.", variant: "destructive" });
-      }
+      fetchRoomDataFromLocalStorage(); // Начальная загрузка из localStorage
       setLoading(false);
     }
+  }, [roomId, fetchRoomDataFromLocalStorage]);
+
+  // Обработчик обновлений состояния комнаты от WebSocket
+  useEffect(() => {
+    const handleRoomStateUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<WebSocketResponse>;
+      if (customEvent.detail.roomId === roomId && customEvent.detail.success && customEvent.detail.data) {
+        const updatedRoomData = customEvent.detail.data as Partial<Room>;
+        console.log(`[RoomPage] WebSocket обновление для ${roomId}:`, updatedRoomData);
+        setRoom(prevRoom => {
+          if (prevRoom) {
+            const newRoomState = { ...prevRoom, ...updatedRoomData };
+            updateMockRoom(newRoomState); // Обновляем и в localStorage для консистентности
+            return newRoomState;
+          }
+          return null;
+        });
+        toast({ title: "Обновление", description: `Состояние комнаты ${roomId} обновлено через мост.` });
+      }
+    };
+    window.addEventListener('roomStateUpdate', handleRoomStateUpdate);
+    return () => {
+      window.removeEventListener('roomStateUpdate', handleRoomStateUpdate);
+    };
   }, [roomId, toast]);
 
-  const handleRoomStateChange = (updatedState: Partial<Room>) => {
+
+  const handleRoomStateChange = async (updatedState: Partial<Room>) => {
     if (!room) return;
-    if (isOffline) {
-      toast({ title: "Offline", description: "Cannot change room state while offline.", variant: "destructive" });
+    if (isOffline && preferredChannel === CommunicationChannel.WEBSOCKET) {
+      toast({ title: "Оффлайн", description: "Нет подключения к сети для отправки команды через мост.", variant: "destructive" });
       return;
     }
 
+    // Оптимистичное обновление UI
     const newRoomState = { ...room, ...updatedState };
     setRoom(newRoomState);
-    updateMockRoom(newRoomState);
-    // Simulate actual command sending
-    sendCommandToController(room.id, ControllerCommandType.SET_STATE, updatedState)
-      .then(() => {
-        toast({ title: "Room Updated", description: "Room settings have been updated (simulated)." });
-      })
-      .catch(error => {
-        console.error("Failed to send command to controller:", error);
-        toast({ title: "Error", description: "Failed to update room settings.", variant: "destructive" });
-        // Optionally revert state if API call fails
-      });
+    updateMockRoom(newRoomState); // Также обновляем в mock-data/localStorage
+
+    const result = await sendCommandToController(room.id, ControllerCommandType.SET_STATE, updatedState, preferredChannel);
+    
+    if (result) {
+      // Если команда успешна, UI уже обновлен оптимистично.
+      // Если мост/контроллер возвращает подтвержденное состояние, можно его здесь применить,
+      // но обычно для SET_STATE достаточно оптимистичного обновления.
+      toast({ title: "Комната Обновлена", description: `Настройки комнаты ${room.id} отправлены (${preferredChannel}).` });
+    } else {
+      // Если команда не удалась, откатываем UI к предыдущему состоянию
+      toast({ title: "Ошибка Команды", description: `Не удалось обновить настройки комнаты ${room.id} (${preferredChannel}).`, variant: "destructive" });
+      fetchRoomDataFromLocalStorage(); // Восстанавливаем из localStorage
+    }
   };
-
+  
+  // Периодическое получение состояния датчиков
   useEffect(() => {
-    if (!room || isOffline) return;
-    const intervalId = setInterval(() => {
-      const newTemperature = parseFloat((Math.random() * 5 + 20).toFixed(1));
-      const newHumidity = parseFloat((Math.random() * 20 + 40).toFixed(1));
-      const newPressure = parseFloat((Math.random() * 10 + 1005).toFixed(0));
+    if (!room || isOffline && preferredChannel === CommunicationChannel.WEBSOCKET) return;
 
-      if (room.temperature !== newTemperature || room.humidity !== newHumidity || room.pressure !== newPressure) {
-        const updatedRoomData = {
-          ...room,
-          temperature: newTemperature,
-          humidity: newHumidity,
-          pressure: newPressure,
-        };
-        setRoom(updatedRoomData);
-        updateMockRoom(updatedRoomData);
+    const fetchSensorData = async () => {
+      console.log(`[RoomPage] Запрос GET_STATE для ${room.id} через ${preferredChannel}`);
+      const result = await sendCommandToController(room.id, ControllerCommandType.GET_STATE, undefined, preferredChannel);
+      if (result && 'temperature' in result) { // Проверяем, что это данные комнаты
+        const updatedSensorData = result as Partial<Room>;
+        setRoom(prevRoom => {
+          if (prevRoom) {
+            const newRoomState = { ...prevRoom, ...updatedSensorData };
+            updateMockRoom(newRoomState);
+            return newRoomState;
+          }
+          return null;
+        });
+         // toast({ title: "Датчики Обновлены", description: `Данные сенсоров для ${room.id} обновлены.` });
+      } else if (result === null && preferredChannel === CommunicationChannel.WEBSOCKET && !isOffline) {
+        // Ошибка при получении данных через WebSocket, но не из-за оффлайна
+        // toast({ title: "Ошибка Датчиков", description: `Не удалось получить данные сенсоров для ${room.id}.`, variant: "destructive" });
       }
-    }, 10000);
+    };
+
+    // Немедленный вызов при монтировании или изменении комнаты/канала
+    fetchSensorData(); 
+
+    const intervalId = setInterval(fetchSensorData, 10000); // Каждые 10 секунд
     return () => clearInterval(intervalId);
-  }, [room, isOffline]);
+  }, [room, isOffline, preferredChannel, toast]);
+
 
   const fetchControllerInfo = async () => {
     if (!room) {
-      toast({ title: "Error", description: "Room not selected.", variant: "destructive" });
+      toast({ title: "Ошибка", description: "Комната не выбрана.", variant: "destructive" });
       return;
     }
-    if (isOffline) {
-      toast({ title: "Offline", description: "Cannot fetch controller info while offline.", variant: "destructive" });
+    if (isOffline && preferredChannel === CommunicationChannel.WEBSOCKET) {
+      toast({ title: "Оффлайн", description: "Нет сети для запроса информации через мост.", variant: "destructive" });
       return;
     }
     setLoadingControllerInfo(true);
-    try {
-      // Pass roomId if your API eventually uses it, though current mock doesn't.
-      const info = await sendCommandToController(room.id, ControllerCommandType.GET_INFO);
-      if (info && 'macAddress' in info) { // Type guard to check if it's ControllerInfo
-        setControllerInfo(info as ControllerInfo);
-        toast({ title: "Controller Info", description: "Successfully fetched controller information." });
-      } else {
-        toast({ title: "Error", description: "Failed to get valid controller information.", variant: "destructive" });
-        setControllerInfo(null);
-      }
-    } catch (error) {
-      console.error("Error fetching controller info:", error);
-      toast({ title: "Error", description: "An error occurred while fetching controller info.", variant: "destructive" });
+    const info = await sendCommandToController(room.id, ControllerCommandType.GET_INFO, undefined, preferredChannel);
+    if (info && 'macAddress' in info) {
+      setControllerInfo(info as ControllerInfo);
+      toast({ title: "Информация о Контроллере", description: `Успешно получена (${preferredChannel}).` });
+    } else {
+      toast({ title: "Ошибка", description: `Не удалось получить информацию о контроллере (${preferredChannel}).`, variant: "destructive" });
       setControllerInfo(null);
-    } finally {
-      setLoadingControllerInfo(false);
+    }
+    setLoadingControllerInfo(false);
+  };
+  
+  const handleConnectBLE = async () => {
+    if (roomId === CONTROLLER_BLE_NAME) { // Предполагаем, что CONTROLLER_BLE_NAME экспортируется или известен
+      const success = await ensureBleConnection();
+      if (success) {
+        toast({ title: "BLE", description: "Успешно подключено к BLE контроллеру." });
+        setPreferredChannel(CommunicationChannel.BLUETOOTH); // Переключаемся на BLE
+      } else {
+        toast({ title: "BLE Ошибка", description: "Не удалось подключиться к BLE контроллеру.", variant: "destructive" });
+      }
+    } else {
+       toast({ title: "BLE Ошибка", description: `BLE доступно только для комнаты ${CONTROLLER_BLE_NAME}.`, variant: "destructive" });
     }
   };
+  
+  const handleDisconnectBLE = async () => {
+    await disconnectFromBLE();
+    setPreferredChannel(CommunicationChannel.WEBSOCKET); // Возвращаемся на WebSocket по умолчанию
+  };
+
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading room details...</p></div>;
+    return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Загрузка данных о комнате...</p></div>;
   }
 
   if (!room) {
-    return <div className="text-center py-10 text-destructive">Room {roomId} not found.</div>;
+    return <div className="text-center py-10 text-destructive">Комната {roomId} не найдена.</div>;
   }
   
-  // Determine AI hint for the main room image
   let aiHint = "hotel room interior";
   if (room.id === "ROOM_19") aiHint = "modern hotel room";
   else if (room.amenities?.includes("King Bed")) aiHint = "luxury hotel suite";
@@ -145,35 +202,51 @@ export default function RoomManagementPage() {
         {isOffline && (
           <Card className="bg-destructive/10 border-destructive">
             <CardContent className="p-3 text-center text-sm text-destructive-foreground flex items-center justify-center gap-2">
-              <WifiOff className="h-4 w-4" /> You are currently offline. Controls may be disabled or delayed. Sensor data may be stale.
+              <WifiOff className="h-4 w-4" /> Вы оффлайн. Некоторые функции могут быть недоступны или работать с задержкой.
             </CardContent>
           </Card>
         )}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BedDouble className="h-6 w-6 text-accent" />
-              Room {room.id} Management
-            </CardTitle>
-            <CardDescription>Control your room environment and access. Guest: {room.guestName || 'N/A'}</CardDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle className="flex items-center gap-2">
+                    <BedDouble className="h-6 w-6 text-accent" />
+                    Управление комнатой: {room.id}
+                    </CardTitle>
+                    <CardDescription>Гость: {room.guestName || 'N/A'}. Канал: {preferredChannel === CommunicationChannel.BLUETOOTH ? 'Bluetooth' : 'WebSocket Мост'}</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    {roomId === 'ROOM_19' && preferredChannel === CommunicationChannel.WEBSOCKET && navigator.bluetooth && (
+                         <Button onClick={handleConnectBLE} variant="outline" size="sm">
+                            <Bluetooth className="mr-2 h-4 w-4" /> Подкл. BLE
+                        </Button>
+                    )}
+                    {preferredChannel === CommunicationChannel.BLUETOOTH && (
+                         <Button onClick={handleDisconnectBLE} variant="outline" size="sm">
+                            <Power className="mr-2 h-4 w-4" /> Откл. BLE
+                        </Button>
+                    )}
+                </div>
+            </div>
           </CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
+            <div className="md:col-span-1 space-y-4">
               {room.imageUrl && (
                 <Image
                   data-ai-hint={aiHint}
                   src={room.imageUrl}
-                  alt={`Image of Room ${room.id}`}
+                  alt={`Изображение комнаты ${room.id}`}
                   width={600}
                   height={400}
                   className="rounded-lg object-cover aspect-video shadow-md"
-                  priority // Prioritize loading if it's a key image
+                  priority
                 />
               )}
                <SensorDisplay room={room} />
             </div>
             <div className="md:col-span-2">
-                <RoomControls room={room} onStateChange={handleRoomStateChange} isOffline={isOffline} />
+                <RoomControls room={room} onStateChange={handleRoomStateChange} isOffline={isOffline && preferredChannel === CommunicationChannel.WEBSOCKET} />
             </div>
           </CardContent>
         </Card>
@@ -182,36 +255,36 @@ export default function RoomManagementPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Info className="h-5 w-5 text-accent" />
-              Controller Information
+              Информация о Контроллере
             </CardTitle>
-            <CardDescription>Details about the room's control unit. {room.id === "ROOM_19" ? "(This is ROOM_19's controller)" : ""}</CardDescription>
+            <CardDescription>Детали об управляющем блоке комнаты. {room.id === "ROOM_19" ? "(Это контроллер ROOM_19)" : ""}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button onClick={fetchControllerInfo} disabled={loadingControllerInfo || isOffline}>
+            <Button onClick={fetchControllerInfo} disabled={loadingControllerInfo || (isOffline && preferredChannel === CommunicationChannel.WEBSOCKET)}>
               {loadingControllerInfo ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Info className="mr-2 h-4 w-4" />
+                <Zap className="mr-2 h-4 w-4" /> 
               )}
-              {loadingControllerInfo ? 'Fetching...' : 'Get Controller Info'}
+              {loadingControllerInfo ? 'Запрос...' : 'Запросить инфо о контроллере'}
             </Button>
             {controllerInfo && (
               <ul className="mt-4 space-y-2 text-sm p-4 border rounded-md bg-muted/50">
                 <li className="flex items-center">
                   <Network className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <strong>IP Address:</strong><span className="ml-1">{controllerInfo.ipAddress}</span>
+                  <strong>IP Адрес:</strong><span className="ml-1">{controllerInfo.ipAddress}</span>
                 </li>
                 <li className="flex items-center">
                   <Fingerprint className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <strong>MAC Address:</strong><span className="ml-1">{controllerInfo.macAddress}</span>
+                  <strong>MAC Адрес:</strong><span className="ml-1">{controllerInfo.macAddress}</span>
                 </li>
                 <li className="flex items-center">
                   <Bluetooth className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <strong>BLE Name:</strong><span className="ml-1">{controllerInfo.bleName}</span>
+                  <strong>BLE Имя:</strong><span className="ml-1">{controllerInfo.bleName}</span>
                 </li>
                 <li className="flex items-center">
                   <KeyRound className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <strong>Token:</strong><span className="ml-1">{controllerInfo.token}</span>
+                  <strong>Токен Контроллера:</strong><span className="ml-1 break-all">{controllerInfo.token}</span>
                 </li>
               </ul>
             )}
@@ -222,3 +295,7 @@ export default function RoomManagementPage() {
     </AuthGuard>
   );
 }
+// Константа CONTROLLER_BLE_NAME должна быть доступна здесь, если она не экспортируется из controllerApi.ts
+// или определена глобально. Для примера, если она есть в controllerApi:
+// import { CONTROLLER_BLE_NAME } from '@/services/controllerApi'; // Если экспортируется
+const CONTROLLER_BLE_NAME = 'ROOM_19'; // Или определить локально/глобально
